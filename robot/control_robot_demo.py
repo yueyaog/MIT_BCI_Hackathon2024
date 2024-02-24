@@ -4,7 +4,7 @@ Control robot using data from the EEG sensor.
 
 from pylsl import StreamInlet, resolve_stream
 import numpy as np
-from scipy.signal import iirnotch, lfilter
+from scipy.signal import iirnotch, lfilter,butter, filtfilt
 from queue import Queue
 import time
 from duckietown.sdk.robots.duckiebot import DB21J
@@ -15,7 +15,7 @@ RUNTIME_SECONDS = 10
 
 # EEG-related params
 EEG_STREAM_ID = "76"
-EEG_SAMPLES_BUFFER_SIZE = 10
+EEG_SAMPLES_BUFFER_SIZE = 40
 FILTER_FREQ = 60
 FILTER_Q = 30
 FILTER_FS = 500.0  # Sample frequency (Hz)
@@ -25,10 +25,22 @@ SIMULATED_ROBOT_NAME = "map_0/vehicle_0"
 REAL_ROBOT_NAME = "rover"
 BASE_SPEED = 0.1
 
+def hpf(data, cutoff=20, fs=250):
+    """Implement a high-pass filter for one channel."""
+    nyquist = 0.5 * fs
+    normal_cutoff = cutoff / nyquist
+    b, a = butter(1, normal_cutoff, btype='high', analog=False)
+    # perform filter on each channel
+    filtered_data = filtfilt(b, a, data)
+    return filtered_data
 
 def is_eeg_gesture_left(eeg_data):
-    # TODO: implement
-    return False
+    eeg_data = np.array(eeg_data.queue)
+    mean_data = np.mean(eeg_data[:,:7], axis=0)
+    filtered_data = hpf(mean_data, cutoff=10, fs=250)
+    noise_std = np.std(filtered_data)
+    threshold = max(noise_std * 3, 100)
+    return mean_data[-1]>threshold
 
 
 def is_eeg_gesture_right(eeg_data):
@@ -72,8 +84,7 @@ def main():
     while time.time() - start_time < RUNTIME_SECONDS:
             
         sample, timestamp = inlet.pull_sample()
-        filtered_sample = filter_sample(sample, filter_b, filter_a)
-        eeg_samples_buffer.put(filtered_sample)
+        eeg_samples_buffer.put(sample)
 
         if eeg_samples_buffer.full():
             # EEG input (boolean)
