@@ -13,9 +13,46 @@ def hpf(data, cutoff=20, fs=250):
     filtered_data = np.array([filtfilt(b, a, data[:, i]) for i in range(data.shape[1])]).T
     return filtered_data
 
-def detect_jaw_clench(data, threshold=0.5):
-    """Detect jaw clenching based on the amplitude of the data."""
-    #
+import numpy as np
+import scipy.signal
+
+# Assuming we have a signal array called 'signal' and a sampling rate called 'fs'
+
+def detect_spikes(signal, fs, threshold_factor=3.5, window_size=50):
+    # Preprocess with a bandpass filter
+    high = 1 / (fs / 2)  # High-pass filter at 1 Hz to remove DC offset
+    low = 300 / (fs / 2)  # Low-pass filter to remove high-frequency noise
+    b, a = scipy.signal.butter(1, [high, low], btype='band')
+    filtered_signal = scipy.signal.filtfilt(b, a, signal)
+    
+    # Thresholding
+    noise_std = np.std(filtered_signal[:window_size])
+    threshold = noise_std * threshold_factor
+    
+    # Detection of onset and offset
+    spike_onset_indices = []
+    spike_offset_indices = []
+    
+    in_spike = False
+    for i, value in enumerate(filtered_signal):
+        if not in_spike and value > threshold:
+            spike_onset_indices.append(i)
+            in_spike = True
+        elif in_spike and value < threshold:
+            spike_offset_indices.append(i)
+            in_spike = False
+            
+    # Convert indices to time
+    spike_onsets = np.array(spike_onset_indices) / fs
+    spike_offsets = np.array(spike_offset_indices) / fs
+    
+    return spike_onsets, spike_offsets, filtered_signal
+
+def detect_spikes(data):
+    # Use the function to detect spikes
+    spike_onsets, spike_offsets, filtered_signal = detect_spikes(signal, fs)
+    # Check the result
+    spike_onsets, spike_offsets
 
 def main():
     # read the data to check if it was saved correctly
