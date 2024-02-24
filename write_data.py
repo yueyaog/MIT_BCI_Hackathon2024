@@ -18,31 +18,31 @@ def collect_data(inlet, interval=0.01, duration=1.0):
 
 def main():
     # first resolve an EEG stream on the lab network
-    # print("looking for an EEG stream...")
-    # looking = True
-    # while(looking):
-    #   streams = resolve_stream('type', 'EEG')
-    #   # Iterate through streams
-    #   print(f"Found {len(streams)} streams")
-    #   print("---------------")
-    #   for stream in streams:
-    #       sid = stream.name()[-2:]
-    #       print(stream.name())
-    #       if sid == "76":
-    #           looking = False
-    #           inlet = StreamInlet(stream)
-    #           print("Found the headset!")
-    #           break
-    # timestamps, data = collect_data(inlet, interval=0.004, duration=60.0)
-    # data_save = {
-    #     'data': data,
-    #     'timestamps': timestamps
-    # }
-    # # Save the data to a file
-    # np.save('data_eyeblink.npy', data_save)
+    print("looking for an EEG stream...")
+    looking = True
+    while(looking):
+      streams = resolve_stream('type', 'EEG')
+      # Iterate through streams
+      print(f"Found {len(streams)} streams")
+      print("---------------")
+      for stream in streams:
+          sid = stream.name()[-2:]
+          print(stream.name())
+          if sid == "76":
+              looking = False
+              inlet = StreamInlet(stream)
+              print("Found the headset!")
+              break
+    timestamps, data = collect_data(inlet, interval=0.004, duration=60.0)
+    data_save = {
+        'data': data,
+        'timestamps': timestamps
+    }
+    # Save the data to a file
+    np.save('data_jaw2.npy', data_save)
 
     # read the data to check if it was saved correctly
-    data_read = np.load('data_eyeblink.npy', allow_pickle=True).item()
+    data_read = np.load('data_jaw2.npy', allow_pickle=True).item()
     print(data_read['data'].shape)
     # plot all channels
     figure = plt.figure(figsize=(10, 7))
