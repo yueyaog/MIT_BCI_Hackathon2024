@@ -26,17 +26,6 @@ def get_new_data(inlet):
     filtered_sample = filter_sample(sample)
     return filtered_sample
 
-def update_lines(frame, lines, data_stream):
-    timestamp, data = next(data_stream)
-    for line, channel_data in zip(lines, data):
-        x, y = line.get_data()
-        x = np.append(x, timestamp)
-        y = np.append(y, channel_data)
-        # Update the line's data and keep the last N points for a rolling plot
-        N = 100  # Adjust N based on how many data points you want to display at once
-        line.set_data(x[-N:], y[-N:])
-    return lines
-
 def collect_data(inlet, interval=0.01, duration=1.0):
     """Collect data for a specified duration with a given interval between data points."""
     num_points = int(duration / interval)
