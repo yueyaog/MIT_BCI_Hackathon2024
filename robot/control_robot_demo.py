@@ -40,12 +40,18 @@ def is_eeg_gesture_left(eeg_data):
     filtered_data = hpf(mean_data, cutoff=10, fs=250)
     noise_std = np.std(filtered_data)
     threshold = max(noise_std * 3, 100)
-    return mean_data[-1]>threshold
+    return np.sum(mean_data>threshold)>1
 
 
 def is_eeg_gesture_right(eeg_data):
-    # TODO: implement
-    return False
+    n_samples_interval = 4
+    eeg_data = np.array(eeg_data.queue)
+    mean_data = np.mean(eeg_data[:,:7], axis=0)
+    filtered_data = hpf(mean_data, cutoff=10, fs=250)
+    noise_std = np.std(filtered_data)
+    threshold = max(noise_std * 3, 100)
+    last_sample_peak = np.sum(mean_data[-n_samples_interval:]>threshold)
+    return np.sum(mean_data>threshold)==1 and (last_sample_peak==0)
 
 
 def find_eeg_inlet_stream(stream_id):
