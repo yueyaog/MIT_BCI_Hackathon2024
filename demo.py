@@ -79,10 +79,10 @@ def main():
               break
     while True:
         start_time = time.time()
-        timestamps, data = collect_data(inlet)
+        timestamps, data = collect_data(inlet, interval=0.004, duration=2.0)
         print(data)
         plot_data(timestamps, data)
-        time.sleep(max(0, 0.5 - (time.time() - start_time)))  # Adjust sleep to ensure a 1-second cycle
+        time.sleep(max(0, 2 - (time.time() - start_time)))  # Adjust sleep to ensure a 1-second cycle
 
 
 if __name__ == '__main__':
