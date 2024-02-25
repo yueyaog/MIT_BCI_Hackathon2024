@@ -34,7 +34,7 @@ def hpf(data, cutoff=20, fs=250):
     filtered_data = filtfilt(b, a, data)
     return filtered_data
 
-def lpf(data, cutoff=20, fs=250):
+def lpf(data, cutoff=20, fs=3000):#fs number has to be high for lpf This is a quick fix
     """Implement a low-pass filter for one channel."""
     nyquist = 0.5 * fs
     normal_cutoff = cutoff / nyquist
