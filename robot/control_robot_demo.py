@@ -8,6 +8,8 @@ from scipy.signal import butter, filtfilt, find_peaks
 from collections import deque
 import time
 from duckietown.sdk.robots.duckiebot import DB21J
+from duckietown.sdk.types import LEDsPattern
+import keyboard
 
 
 # General params
@@ -19,11 +21,20 @@ EEG_SAMPLES_BUFFER_SIZE = 40
 
 # Robot-related params
 RUN_IN_SIMULATION = True
-# RUN_IN_SIMULATION = False
+RUN_IN_SIMULATION = False
 SIMULATED_ROBOT_NAME = "map_0/vehicle_0"
-REAL_ROBOT_NAME = "rover"
+REAL_ROBOT_NAME = "curiosity"
 BASE_SPEED = 0.3
 STEERING_DECREASE_FACTOR = 0.1
+STEERING_MEMORY_NUM_SAMPLES = 100
+COLOR_OFF = (0, 0, 0, 0.0)
+COLOR_AMBER = (1, 0.7, 0, 1.0)
+COLOR_RED = (1, 0, 0, 1.0)
+COLOR_GREEN = (0, 1, 0, 1.0)
+LED_pattern_left = LEDsPattern(front_left=COLOR_GREEN, rear_left=COLOR_GREEN, front_right=COLOR_OFF, rear_right=COLOR_OFF)
+LED_pattern_right = LEDsPattern(front_left=COLOR_OFF, rear_left=COLOR_OFF, front_right=COLOR_GREEN, rear_right=COLOR_GREEN)
+LED_pattern_straight_none = LEDsPattern(front_left=COLOR_OFF, rear_left=COLOR_OFF, front_right=COLOR_OFF, rear_right=COLOR_OFF)
+LED_pattern_straight_both = LEDsPattern(front_left=COLOR_RED, rear_left=COLOR_RED, front_right=COLOR_RED, rear_right=COLOR_RED)
 
 
 def hpf(data, cutoff=20, fs=250):
@@ -107,30 +118,32 @@ def main():
         robot = DB21J(SIMULATED_ROBOT_NAME, simulated=RUN_IN_SIMULATION)
     else:
         robot = DB21J(REAL_ROBOT_NAME, simulated=RUN_IN_SIMULATION)
+    robot.lights.start()
     robot.motors.start()
 
     print('Starting main loop...')
-    counter = 0
+    steering_memory_samples_counter = 0
     start_time = time.time()
     while time.time() - start_time < RUNTIME_SECONDS:
             
-        # print(f'Get sample {eeg_samples_buffer.qsize()}')
+        # print(f'Getting sample {eeg_samples_buffer.qsize()}')
         sample, timestamp = inlet.pull_sample()
-        # print(f'Get sample {eeg_samples_buffer.qsize()}')
+        # print(f'Got sample {eeg_samples_buffer.qsize()}')
         eeg_samples_buffer.append(sample)
-
         # print(f'Got sample, buffer size {eeg_samples_buffer.qsize()}')
 
         if eeg_samples_buffer.full():
-
             # print(f'Got enough samples, ...')
             eeg_control_left = is_eeg_gesture_left(eeg_samples_buffer)
             eeg_control_right = is_eeg_gesture_right(eeg_samples_buffer)
-            # print(f'Left: {eeg_control_left}, Right: {eeg_control_right}')
+            # print(f'Detected gestures: Left: {eeg_control_left}, Right: {eeg_control_right}')
+            if eeg_control_left and eeg_control_right:
+                print(f'----- Both gestures detected!')
 
-            if counter <= 0:
+            if steering_memory_samples_counter <= 0:
+                # if eeg_control_left != not eeg_control_right:
                 if eeg_control_left or eeg_control_right:
-                    counter = 100
+                    steering_memory_samples_counter = STEERING_MEMORY_NUM_SAMPLES
 
                 # Set speeds
                 speed_left = BASE_SPEED
@@ -138,20 +151,32 @@ def main():
                 if eeg_control_left:
                     speed_left *= STEERING_DECREASE_FACTOR
                 if eeg_control_right:
-                    speed_right *= STEERING_DECREASE_FACTOR
-
-                # Motor control
-                # print(f'SPEED: Left: {speed_left}, Right: {speed_right}')
-                robot.motors.publish((speed_left, speed_right))
-                
+                    speed_right *= STEERING_DECREASE_FACTOR                
             else:
-                counter -= 1
-                robot.motors.publish((speed_left, speed_right))
+                steering_memory_samples_counter -= 1
+
+            # LED control based on speeds
+            if speed_left < speed_right:
+                robot.lights.publish(LED_pattern_left)
+            elif speed_left > speed_right:
+                robot.lights.publish(LED_pattern_right)
+            elif eeg_control_left and eeg_control_right:
+                robot.lights.publish(LED_pattern_straight_both)
+            else:
+                robot.lights.publish(LED_pattern_straight_none)
+
+            # Motor control
+            # print(f'SPEED: Left: {speed_left}, Right: {speed_right}')
+            robot.motors.publish((speed_left, speed_right))
+
+            # if keyboard.read_key() == "q":
+            #     break
 
         # time.sleep(0.01)
 
     robot.motors.stop()
-    print(f"Robot stopped after {RUNTIME_SECONDS} seconds.")
+    robot.lights.stop()
+    print(f"Robot stopped after {time.time() - start_time} seconds.")
 
 
 if __name__ == '__main__':
