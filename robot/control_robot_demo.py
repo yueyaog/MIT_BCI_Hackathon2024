@@ -4,7 +4,7 @@ Control robot using data from the EEG sensor.
 
 from pylsl import StreamInlet, resolve_stream
 import numpy as np
-from scipy.signal import butter, filtfilt
+from scipy.signal import butter, filtfilt, find_peaks
 from collections import deque
 import time
 from duckietown.sdk.robots.duckiebot import DB21J
@@ -47,17 +47,22 @@ def lpf(data, cutoff=20, fs=3000):
 
 
 def is_eeg_gesture_left(eeg_data):
-    # eeg_data = np.array(eeg_data.queue)
-    # # print(eeg_data.shape)
-    # mean_data = np.mean(eeg_data[:,:7], axis=1)
-    # filtered_data = hpf(mean_data, cutoff=10, fs=250)
-    # noise_std = np.std(filtered_data)
-    # threshold = max(noise_std * 3, 10)
-    # is_gesture = np.sum(filtered_data > threshold) > 1
-    # if is_gesture:
-    #     print(f"Left gesture: {filtered_data} {threshold}")
-    # return is_gesture
-    return False
+    n_samples_interval = 4
+    eeg_data = np.array(eeg_data.queue)
+    mean_data = np.mean(eeg_data[:,:7], axis=1)
+    filtered_data = lpf(mean_data, cutoff=10, fs=250)
+    noise_std = np.std(filtered_data)
+    print(noise_std)
+    threshold = max(noise_std * 2, 100)
+    # threshold = 10
+    # last_sample_peak = filtered_data[-n_samples_interval] > threshold
+    # is_gesture = np.sum(mean_data > threshold) == 1 and last_sample_peak
+    peaks, _ = find_peaks(filtered_data, height=threshold, prominence=threshold)
+    is_gesture = len(filtered_data[peaks])>1
+    if is_gesture:
+        print(f"Left gesture: {filtered_data} {threshold} {len(filtered_data[peaks])}")
+    return is_gesture
+
 
 
 def is_eeg_gesture_right(eeg_data):
@@ -67,12 +72,14 @@ def is_eeg_gesture_right(eeg_data):
     filtered_data = lpf(mean_data, cutoff=10, fs=250)
     noise_std = np.std(filtered_data)
     print(noise_std)
-    threshold = max(noise_std * 2, 10)
+    threshold = max(noise_std * 2, 100)
     # threshold = 10
-    last_sample_peak = filtered_data[-n_samples_interval] > threshold
-    is_gesture = np.sum(mean_data > threshold) == 1 and last_sample_peak
+    # last_sample_peak = filtered_data[-n_samples_interval] > threshold
+    # is_gesture = np.sum(mean_data > threshold) == 1 and last_sample_peak
+    peaks, _ = find_peaks(filtered_data, height=threshold, prominence=threshold)
+    is_gesture = len(filtered_data[peaks])==1
     if is_gesture:
-        print(f"Right gesture: {filtered_data} {threshold}")
+        print(f"Right gesture: {filtered_data} {threshold} {len(filtered_data[peaks])}")
     return is_gesture
     # return False
 
