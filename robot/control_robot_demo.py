@@ -1,6 +1,7 @@
 """
 Control robot using data from the EEG sensor.
 """
+
 from pylsl import StreamInlet, resolve_stream
 import numpy as np
 from scipy.signal import butter, filtfilt, find_peaks
@@ -11,23 +12,44 @@ from duckietown.sdk.types import LEDsPattern
 
 
 # General params
-RUNTIME_SECONDS = 120
+RUNTIME_SECONDS = 270
 
 # EEG-related params
 EEG_STREAM_ID = "76"
 EEG_SAMPLES_BUFFER_SIZE = 40
 
 # Robot-related params
-RUN_IN_SIMULATION = True
+# RUN_IN_SIMULATION = True
 RUN_IN_SIMULATION = False
 SIMULATED_ROBOT_NAME = "map_0/vehicle_0"
-REAL_ROBOT_NAME = "rover"
-BASE_SPEED = 0.4
+REAL_ROBOT_NAME = "perseverance"
+# REAL_ROBOT_NAME = "curiosity"
+# REAL_ROBOT_NAME = "rover"
+
+# Speed option 4 - to be tested
+# BASE_SPEED = 0.8
+# STEERING_DECREASE_FACTOR_LEFT = 0.05
+# STEERING_DECREASE_FACTOR_RIGHT = 0.02
+
+# BASE_SPEED = 0.7 - a bit fast
+# STEERING_DECREASE_FACTOR_LEFT = 0.05
+# STEERING_DECREASE_FACTOR_RIGHT = 0.02
+
+# Speed option 3 - final
+BASE_SPEED = 0.65
 STEERING_DECREASE_FACTOR_LEFT = 0.05
 STEERING_DECREASE_FACTOR_RIGHT = 0.02
+
+# Speed option 2 - ok
+# BASE_SPEED = 0.6
+# STEERING_DECREASE_FACTOR_LEFT = 0.05
+# STEERING_DECREASE_FACTOR_RIGHT = 0.02
+
+# Speed option 1 - ok
 # BASE_SPEED = 0.35
 # STEERING_DECREASE_FACTOR_LEFT = 0.05
 # STEERING_DECREASE_FACTOR_RIGHT = 0.02
+
 STEERING_MEMORY_NUM_SAMPLES = 100
 COLOR_OFF = (0, 0, 0, 0.0)
 COLOR_AMBER = (1, 0.7, 0, 1.0)
@@ -65,8 +87,8 @@ def is_eeg_gesture_left(eeg_data):
     threshold = max(noise_std * 2, 100)
     peaks, _ = find_peaks(filtered_data, height=threshold, prominence=threshold/2)
     is_gesture = len(filtered_data[peaks]) > 1
-    if is_gesture:
-        print(f"Left gesture: {filtered_data} {threshold} {len(filtered_data[peaks])}")
+    # if is_gesture:
+    #     print(f"Left gesture: {filtered_data} {threshold} {len(filtered_data[peaks])}")
     return is_gesture
 
 
@@ -75,11 +97,12 @@ def is_eeg_gesture_right(eeg_data):
     mean_data = np.mean(eeg_data[:,:7], axis=1)
     filtered_data = lpf(mean_data, cutoff=10, fs=250)
     noise_std = np.std(filtered_data)
-    threshold = max(noise_std * 2, 100)
+    # threshold = max(noise_std * 2, 100)
+    threshold = 70
     peaks, _ = find_peaks(filtered_data, height=threshold, prominence=threshold/4)
     is_gesture = len(filtered_data[peaks]) == 1
-    if is_gesture:
-        print(f"Right gesture: {filtered_data} {threshold} {len(filtered_data[peaks])}")
+    # if is_gesture:
+    #     print(f"Right gesture: {filtered_data} {threshold} {len(filtered_data[peaks])}")
     return is_gesture
 
 
@@ -159,9 +182,12 @@ def main():
 
         # time.sleep(0.01)
 
+    robot.motors.publish((0, 0))
+    time.sleep(2)
     robot.motors.stop()
     robot.lights.stop()
     print(f"Robot stopped after {time.time() - start_time} seconds.")
+
 
 if __name__ == '__main__':
     main()
