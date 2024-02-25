@@ -58,18 +58,18 @@ def lpf(data, cutoff=20, fs=3000):
 
 
 def is_eeg_gesture_left(eeg_data):
-    n_samples_interval = 4
+    # n_samples_interval = 4
     eeg_data = np.array(eeg_data.queue)
     mean_data = np.mean(eeg_data[:,:7], axis=1)
-    filtered_data = lpf(mean_data, cutoff=10, fs=250)
+    filtered_data = hpf(mean_data, cutoff=10, fs=250)
     noise_std = np.std(filtered_data)
     print(noise_std)
     threshold = max(noise_std * 2, 100)
     # threshold = 10
     # last_sample_peak = filtered_data[-n_samples_interval] > threshold
     # is_gesture = np.sum(mean_data > threshold) == 1 and last_sample_peak
-    peaks, _ = find_peaks(filtered_data, height=threshold, prominence=threshold)
-    is_gesture = len(filtered_data[peaks])>1
+    peaks, _ = find_peaks(filtered_data, height=threshold, prominence=threshold/2)
+    is_gesture = len(filtered_data[peaks]) > 1
     if is_gesture:
         print(f"Left gesture: {filtered_data} {threshold} {len(filtered_data[peaks])}")
     return is_gesture
@@ -77,7 +77,7 @@ def is_eeg_gesture_left(eeg_data):
 
 
 def is_eeg_gesture_right(eeg_data):
-    n_samples_interval = 4
+    # n_samples_interval = 4
     eeg_data = np.array(eeg_data.queue)
     mean_data = np.mean(eeg_data[:,:7], axis=1)
     filtered_data = lpf(mean_data, cutoff=10, fs=250)
@@ -88,7 +88,7 @@ def is_eeg_gesture_right(eeg_data):
     # last_sample_peak = filtered_data[-n_samples_interval] > threshold
     # is_gesture = np.sum(mean_data > threshold) == 1 and last_sample_peak
     peaks, _ = find_peaks(filtered_data, height=threshold, prominence=threshold)
-    is_gesture = len(filtered_data[peaks])==1
+    is_gesture = len(filtered_data[peaks]) == 1
     if is_gesture:
         print(f"Right gesture: {filtered_data} {threshold} {len(filtered_data[peaks])}")
     return is_gesture
