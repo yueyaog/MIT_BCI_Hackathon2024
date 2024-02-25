@@ -34,6 +34,16 @@ def hpf(data, cutoff=20, fs=250):
     filtered_data = filtfilt(b, a, data)
     return filtered_data
 
+def lpf(data, cutoff=20, fs=250):
+    """Implement a high-pass filter for each of the 7 channels."""
+    from scipy.signal import butter, filtfilt
+    nyquist = 0.5 * fs
+    normal_cutoff = cutoff / nyquist
+    b, a = butter(1, normal_cutoff, btype='low', analog=False)
+    # perform filter on each channel
+    filtered_data = np.array([filtfilt(b, a, data[:, i]) for i in range(data.shape[1])]).T
+    return filtered_data
+
 def is_eeg_gesture_left(eeg_data):
     eeg_data = np.array(eeg_data.queue)
     mean_data = np.mean(eeg_data[:,:7], axis=0)
@@ -47,7 +57,7 @@ def is_eeg_gesture_right(eeg_data):
     n_samples_interval = 4
     eeg_data = np.array(eeg_data.queue)
     mean_data = np.mean(eeg_data[:,:7], axis=0)
-    filtered_data = hpf(mean_data, cutoff=10, fs=250)
+    filtered_data = lpf(mean_data, cutoff=10, fs=250)
     noise_std = np.std(filtered_data)
     threshold = max(noise_std * 3, 100)
     last_sample_peak = filtered_data[-n_samples_interval]>threshold
