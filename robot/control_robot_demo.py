@@ -1,7 +1,6 @@
 """
 Control robot using data from the EEG sensor.
 """
-
 from pylsl import StreamInlet, resolve_stream
 import numpy as np
 from scipy.signal import butter, filtfilt, find_peaks
@@ -9,11 +8,10 @@ from collections import deque
 import time
 from duckietown.sdk.robots.duckiebot import DB21J
 from duckietown.sdk.types import LEDsPattern
-import keyboard
 
 
 # General params
-RUNTIME_SECONDS = 30
+RUNTIME_SECONDS = 120
 
 # EEG-related params
 EEG_STREAM_ID = "76"
@@ -23,9 +21,13 @@ EEG_SAMPLES_BUFFER_SIZE = 40
 RUN_IN_SIMULATION = True
 RUN_IN_SIMULATION = False
 SIMULATED_ROBOT_NAME = "map_0/vehicle_0"
-REAL_ROBOT_NAME = "curiosity"
-BASE_SPEED = 0.3
-STEERING_DECREASE_FACTOR = 0.1
+REAL_ROBOT_NAME = "rover"
+BASE_SPEED = 0.4
+STEERING_DECREASE_FACTOR_LEFT = 0.05
+STEERING_DECREASE_FACTOR_RIGHT = 0.02
+# BASE_SPEED = 0.35
+# STEERING_DECREASE_FACTOR_LEFT = 0.05
+# STEERING_DECREASE_FACTOR_RIGHT = 0.02
 STEERING_MEMORY_NUM_SAMPLES = 100
 COLOR_OFF = (0, 0, 0, 0.0)
 COLOR_AMBER = (1, 0.7, 0, 1.0)
@@ -42,7 +44,6 @@ def hpf(data, cutoff=20, fs=250):
     nyquist = 0.5 * fs
     normal_cutoff = cutoff / nyquist
     b, a = butter(1, normal_cutoff, btype='high', analog=False)
-    # perform filter on each channel
     filtered_data = filtfilt(b, a, data)
     return filtered_data
 
@@ -52,22 +53,16 @@ def lpf(data, cutoff=20, fs=3000):
     nyquist = 0.5 * fs
     normal_cutoff = cutoff / nyquist
     b, a = butter(1, normal_cutoff, btype='low', analog=False)
-    # perform filter on each channel
     filtered_data = filtfilt(b, a, data)
     return filtered_data
 
 
 def is_eeg_gesture_left(eeg_data):
-    # n_samples_interval = 4
-    eeg_data = np.array(eeg_data.queue)
+    eeg_data = np.array(eeg_data)
     mean_data = np.mean(eeg_data[:,:7], axis=1)
     filtered_data = hpf(mean_data, cutoff=10, fs=250)
     noise_std = np.std(filtered_data)
-    print(noise_std)
     threshold = max(noise_std * 2, 100)
-    # threshold = 10
-    # last_sample_peak = filtered_data[-n_samples_interval] > threshold
-    # is_gesture = np.sum(mean_data > threshold) == 1 and last_sample_peak
     peaks, _ = find_peaks(filtered_data, height=threshold, prominence=threshold/2)
     is_gesture = len(filtered_data[peaks]) > 1
     if is_gesture:
@@ -75,24 +70,17 @@ def is_eeg_gesture_left(eeg_data):
     return is_gesture
 
 
-
 def is_eeg_gesture_right(eeg_data):
-    # n_samples_interval = 4
-    eeg_data = np.array(eeg_data.queue)
+    eeg_data = np.array(eeg_data)
     mean_data = np.mean(eeg_data[:,:7], axis=1)
     filtered_data = lpf(mean_data, cutoff=10, fs=250)
     noise_std = np.std(filtered_data)
-    print(noise_std)
     threshold = max(noise_std * 2, 100)
-    # threshold = 10
-    # last_sample_peak = filtered_data[-n_samples_interval] > threshold
-    # is_gesture = np.sum(mean_data > threshold) == 1 and last_sample_peak
-    peaks, _ = find_peaks(filtered_data, height=threshold, prominence=threshold)
+    peaks, _ = find_peaks(filtered_data, height=threshold, prominence=threshold/4)
     is_gesture = len(filtered_data[peaks]) == 1
     if is_gesture:
         print(f"Right gesture: {filtered_data} {threshold} {len(filtered_data[peaks])}")
     return is_gesture
-    # return False
 
 
 def find_eeg_inlet_stream(stream_id):
@@ -132,7 +120,7 @@ def main():
         eeg_samples_buffer.append(sample)
         # print(f'Got sample, buffer size {eeg_samples_buffer.qsize()}')
 
-        if eeg_samples_buffer.full():
+        if len(eeg_samples_buffer) == EEG_SAMPLES_BUFFER_SIZE:
             # print(f'Got enough samples, ...')
             eeg_control_left = is_eeg_gesture_left(eeg_samples_buffer)
             eeg_control_right = is_eeg_gesture_right(eeg_samples_buffer)
@@ -149,9 +137,9 @@ def main():
                 speed_left = BASE_SPEED
                 speed_right = BASE_SPEED
                 if eeg_control_left:
-                    speed_left *= STEERING_DECREASE_FACTOR
+                    speed_left *= STEERING_DECREASE_FACTOR_LEFT
                 if eeg_control_right:
-                    speed_right *= STEERING_DECREASE_FACTOR                
+                    speed_right *= STEERING_DECREASE_FACTOR_RIGHT                
             else:
                 steering_memory_samples_counter -= 1
 
@@ -169,15 +157,11 @@ def main():
             # print(f'SPEED: Left: {speed_left}, Right: {speed_right}')
             robot.motors.publish((speed_left, speed_right))
 
-            # if keyboard.read_key() == "q":
-            #     break
-
         # time.sleep(0.01)
 
     robot.motors.stop()
     robot.lights.stop()
     print(f"Robot stopped after {time.time() - start_time} seconds.")
-
 
 if __name__ == '__main__':
     main()
