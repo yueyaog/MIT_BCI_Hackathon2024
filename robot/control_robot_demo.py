@@ -35,13 +35,12 @@ def hpf(data, cutoff=20, fs=250):
     return filtered_data
 
 def lpf(data, cutoff=20, fs=250):
-    """Implement a high-pass filter for each of the 7 channels."""
-    from scipy.signal import butter, filtfilt
+    """Implement a low-pass filter for one channel."""
     nyquist = 0.5 * fs
     normal_cutoff = cutoff / nyquist
     b, a = butter(1, normal_cutoff, btype='low', analog=False)
     # perform filter on each channel
-    filtered_data = np.array([filtfilt(b, a, data[:, i]) for i in range(data.shape[1])]).T
+    filtered_data = filtfilt(b, a, data)
     return filtered_data
 
 def is_eeg_gesture_left(eeg_data):
